@@ -1,104 +1,81 @@
 import React from 'react';
-import { Stage, Layer, Line, Text } from 'react-konva';
-import type { KonvaEventObject } from 'konva/lib/Node';
+import { DrawingStage } from './drawing/DrawingStage';
+import { DrawingToolbar } from './drawing/DrawingToolbar';
+import { useDrawing } from './drawing/useDrawing';
+import type { DrawingTool, ShapeType } from './drawing/types';
 
-type DrawingTool = 'pen' | 'eraser';
-
-type DrawingLine = {
-  tool: DrawingTool;
-  points: number[];
-};
-
-const Canvas = () => {
+export default function Canvas() {
   const [tool, setTool] = React.useState<DrawingTool>('pen');
-  const [lines, setLines] = React.useState<DrawingLine[]>([]);
-  const isDrawing = React.useRef(false);
+  const [color, setColor] = React.useState('#242329');
+  const [penSize, setPenSize] = React.useState(5);
+  const [eraserSize, setEraserSize] = React.useState(24);
+  const [selectedShape, setSelectedShape] = React.useState<ShapeType>('rectangle');
 
-  const handleMouseDown = (e: KonvaEventObject<MouseEvent | TouchEvent>) => {
-    isDrawing.current = true;
-    const pos = e.target.getStage()?.getPointerPosition();
+  const drawing = useDrawing({ tool, color, penSize, eraserSize, selectedShape });
 
-    if (!pos) {
-      return;
-    }
+  React.useEffect(() => {
+    if (!drawing.selectedElementId) return;
 
-    setLines((prevLines) => [...prevLines, { tool, points: [pos.x, pos.y] }]);
-  };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+      const target = event.target;
+      if (target instanceof HTMLElement && (
+        target.isContentEditable || target.closest('input, textarea, select, [contenteditable="true"]')
+      )) return;
 
-  const handleMouseMove = (e: KonvaEventObject<MouseEvent | TouchEvent>) => {
-    if (!isDrawing.current) {
-      return;
-    }
+      event.preventDefault();
+      drawing.deleteSelectedElement();
+    };
 
-    const stage = e.target.getStage();
-    const point = stage?.getPointerPosition();
-
-    if (!point) {
-      return;
-    }
-
-    setLines((prevLines) => {
-      const lastLine = prevLines[prevLines.length - 1];
-
-      if (!lastLine) {
-        return prevLines;
-      }
-
-      const updatedLines = [...prevLines];
-      updatedLines[updatedLines.length - 1] = {
-        ...lastLine,
-        points: [...lastLine.points, point.x, point.y],
-      };
-
-      return updatedLines;
-    });
-  };
-
-  const handleMouseUp = () => {
-    isDrawing.current = false;
-  };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [drawing.selectedElementId, drawing.deleteSelectedElement]);
 
   return (
-    <div>
-      <select
-        value={tool}
-        onChange={(e) => {
-          setTool(e.target.value as DrawingTool);
-        }}
-      >
-        <option value="pen">Pen</option>
-        <option value="eraser">Eraser</option>
-      </select>
-      <Stage
-        width={window.innerWidth}
-        height={window.innerHeight}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onTouchStart={handleMouseDown}
-        onTouchMove={handleMouseMove}
-        onTouchEnd={handleMouseUp}
-      >
-        <Layer>
-          <Text text="Just start drawing" x={5} y={30} />
-          {lines.map((line, i) => (
-            <Line
-              key={i}
-              points={line.points}
-              stroke="#df4b26"
-              strokeWidth={5}
-              tension={0.5}
-              lineCap="round"
-              lineJoin="round"
-              globalCompositeOperation={
-                line.tool === 'eraser' ? 'destination-out' : 'source-over'
-              }
-            />
-          ))}
-        </Layer>
-      </Stage>
-    </div>
-  );
-};
+    <main className="mx-auto flex min-h-svh w-full max-w-[1240px] flex-col px-8 pb-7 pt-11 max-sm:px-3 max-sm:pb-4 max-sm:pt-5 sm:px-5 md:px-8">
+      <header className="mb-7 flex items-center gap-3.5 max-sm:mb-5 max-sm:px-1">
+        <div className="grid size-[42px] place-items-center rounded-[13px] bg-[#7158df] text-[27px] leading-none text-white shadow-[0_6px_14px_#7158df35]" aria-hidden="true">✳</div>
+        <div>
+          <h1 className="font-sans text-xl font-extrabold tracking-[-0.5px] text-[#292734]">Free Draw</h1>
+          <p className="mt-0.5 text-[13px] text-[#8a8893]">A little space to make something</p>
+        </div>
+      </header>
 
-export default Canvas;
+      <section className="flex min-h-[620px] flex-1 flex-col overflow-hidden rounded-2xl border border-[#e9e7ed] bg-white shadow-[0_12px_36px_#342a5010,0_2px_6px_#342a5008] max-sm:min-h-[650px]" aria-label="Drawing workspace">
+        <DrawingToolbar
+          tool={tool}
+          onToolChange={setTool}
+          color={color}
+          onColorChange={setColor}
+          penSize={penSize}
+          onPenSizeChange={setPenSize}
+          eraserSize={eraserSize}
+          onEraserSizeChange={setEraserSize}
+          selectedShape={selectedShape}
+          onShapeChange={setSelectedShape}
+          selectedElementId={drawing.selectedElementId}
+          onDeleteSelectedElement={drawing.deleteSelectedElement}
+        />
+        <DrawingStage
+          elements={drawing.elements}
+          tool={tool}
+          eraserSize={eraserSize}
+          eraserPosition={drawing.eraserPosition}
+          selectedElementId={drawing.selectedElementId}
+          onSelectElement={drawing.setSelectedElementId}
+          onShapeGeometryChange={drawing.updateShape}
+          onStrokePointsChange={drawing.updateStroke}
+          onMouseDown={drawing.handleMouseDown}
+          onMouseMove={drawing.handleMouseMove}
+          onMouseUp={drawing.handleMouseUp}
+          onMouseLeave={drawing.handleMouseLeave}
+        />
+        <footer className="flex min-h-[42px] items-center justify-between border-t border-[#ecebf0] px-[18px] text-[11px] text-[#a09eaa] max-sm:px-3 max-sm:text-[10px]">
+          <span>Untitled canvas</span>
+          <span>{tool === 'pointer' ? 'Select a shape or stroke to move or resize' : tool === 'shape' ? 'Drag to draw a shape' : tool === 'eraser' ? 'Eraser removes pen strokes only' : 'Draw with your mouse or touch'}</span>
+        </footer>
+      </section>
+      <p className="mt-[18px] text-center text-xs text-[#9b99a3]">Your canvas is ready whenever inspiration strikes.</p>
+    </main>
+  );
+}
