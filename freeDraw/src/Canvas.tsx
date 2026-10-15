@@ -12,24 +12,34 @@ export default function Canvas() {
   const [selectedShape, setSelectedShape] = React.useState<ShapeType>('rectangle');
 
   const drawing = useDrawing({ tool, color, penSize, eraserSize, selectedShape });
+  const { selectedElementId, deleteSelectedElement, undo, redo } = drawing;
 
   React.useEffect(() => {
-    if (!drawing.selectedElementId) return;
-
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
       const target = event.target;
       if (target instanceof HTMLElement && (
         target.isContentEditable || target.closest('input, textarea, select, [contenteditable="true"]')
       )) return;
 
+      const modifier = event.ctrlKey || event.metaKey;
+      if (modifier && !event.altKey) {
+        const key = event.key.toLowerCase();
+        if (key === 'z' || (key === 'y' && !event.shiftKey)) {
+          event.preventDefault();
+          if (key === 'y' || event.shiftKey) redo();
+          else undo();
+          return;
+        }
+      }
+      if (!selectedElementId || (event.key !== 'Delete' && event.key !== 'Backspace')) return;
+
       event.preventDefault();
-      drawing.deleteSelectedElement();
+      deleteSelectedElement();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [drawing.selectedElementId, drawing.deleteSelectedElement]);
+  }, [selectedElementId, deleteSelectedElement, undo, redo]);
 
   return (
     <main className="mx-auto flex min-h-svh w-full max-w-[1240px] flex-col px-8 pb-7 pt-11 max-sm:px-3 max-sm:pb-4 max-sm:pt-5 sm:px-5 md:px-8">
@@ -55,6 +65,10 @@ export default function Canvas() {
           onShapeChange={setSelectedShape}
           selectedElementId={drawing.selectedElementId}
           onDeleteSelectedElement={drawing.deleteSelectedElement}
+          canUndo={drawing.canUndo}
+          canRedo={drawing.canRedo}
+          onUndo={drawing.undo}
+          onRedo={drawing.redo}
         />
         <DrawingStage
           elements={drawing.elements}

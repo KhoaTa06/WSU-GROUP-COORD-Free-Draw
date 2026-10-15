@@ -16,6 +16,10 @@ type DrawingToolbarProps = {
   onShapeChange: (shape: ShapeType) => void;
   selectedElementId: string | null;
   onDeleteSelectedElement: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
 };
 
 export function DrawingToolbar({
@@ -31,6 +35,10 @@ export function DrawingToolbar({
   onShapeChange,
   selectedElementId,
   onDeleteSelectedElement,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
 }: DrawingToolbarProps) {
   const hint = tool === 'pointer' ? 'Select and transform' : tool === 'pen' ? 'Ready to draw' : tool === 'eraser' ? 'Erase pen strokes' : `Drawing ${selectedShape}`;
 
@@ -59,7 +67,15 @@ export function DrawingToolbar({
       <SizeControl id="pen-size" label="Pen size" value={penSize} min={1} max={40} disabled={tool !== 'pen'} onChange={onPenSizeChange} />
       <SizeControl id="eraser-size" label="Eraser size" value={eraserSize} min={4} max={80} disabled={tool !== 'eraser'} onChange={onEraserSizeChange} />
 
-      <div className="flex items-center border-l border-[#ecebf0] pl-5 max-sm:pl-0 max-sm:border-l-0">
+      <div className="flex items-center gap-2 border-l border-[#ecebf0] pl-5 max-sm:pl-0 max-sm:border-l-0">
+        <button type="button" onClick={onUndo} disabled={!canUndo} aria-label="Undo" title="Undo (Ctrl/⌘+Z)" className="inline-flex h-[38px] items-center gap-2 rounded-lg border border-[#ecebf0] px-3 text-xs font-semibold text-[#746f7f] hover:bg-[#f7f6f9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a598f2] disabled:cursor-not-allowed disabled:opacity-40">
+          <svg className="size-4 fill-none stroke-current" viewBox="0 0 20 20" aria-hidden="true"><path d="M8 4 4 8l4 4M4 8h8a4 4 0 0 1 0 8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></svg>
+          Undo
+        </button>
+        <button type="button" onClick={onRedo} disabled={!canRedo} aria-label="Redo" title="Redo (Ctrl/⌘+Shift+Z or Ctrl+Y)" className="inline-flex h-[38px] items-center gap-2 rounded-lg border border-[#ecebf0] px-3 text-xs font-semibold text-[#746f7f] hover:bg-[#f7f6f9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a598f2] disabled:cursor-not-allowed disabled:opacity-40">
+          <svg className="size-4 fill-none stroke-current" viewBox="0 0 20 20" aria-hidden="true"><path d="m12 4 4 4-4 4m4-4H8a4 4 0 0 0 0 8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></svg>
+          Redo
+        </button>
         <button
           type="button"
           onClick={onDeleteSelectedElement}
